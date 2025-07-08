@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Bomb Suit</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #textArea {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        #textArea h2 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            font-size: 24px;
+        }
+        
+        #textArea p {
+            margin: 5px 0;
+            color: #34495e;
+            line-height: 1.4;
+        }
+        
+        #canvas {
+            display: block;
+            margin-top: 180px;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        #navigationButtons {
+            position: absolute;
+            top: 200px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 100;
+        }
+        
+        .nav-button {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            min-width: 180px;
+        }
+        
+        .nav-button:hover {
+            background: linear-gradient(135deg, #229954, #27ae60);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+        }
+        
+        .nav-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(39, 174, 96, 0.3);
+        }
+        
+        .nav-button.literature {
+            background: linear-gradient(135deg, #3498db, #5dade2);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .nav-button.literature:hover {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .nav-button.methodology {
+            background: linear-gradient(135deg, #e74c3c, #ec7063);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .nav-button.methodology:hover {
+            background: linear-gradient(135deg, #c0392b, #e74c3c);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+        
+        .nav-button.results {
+            background: linear-gradient(135deg, #f39c12, #f7dc6f);
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+        }
+        
+        .nav-button.results:hover {
+            background: linear-gradient(135deg, #e67e22, #f39c12);
+            box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div id="textArea">
+        <h2>URCPP 799: Bombsuit Research</h2>
+        <p>Pricipal Investigator: Kyle Leyshon</p>
+        <p>Research Assistants: Lindey Fleming and Gabe Hack</p>
+        <p>Data Engineer: Jessica Douthit</p>
+    </div>
+
+    <div id="navigationButtons">
+        <a href="research-overview.html" class="nav-button active">Literature Review</a>
+        <a href="methodology.html" class="nav-button methodology">Methodology</a>
+        <a href="findings.html" class="nav-button results">Results</a>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, bombSuit, mixer;
+        let mouseX = 0, mouseY = 0;
+        let isMouseDown = false;
+        let autoRotate = true;
+        let rotationSpeed = 0.005;
+        let backgroundBombs = [];
+
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a252f);
+            
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 5);
+            
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight - 180);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            const fillLight = new THREE.DirectionalLight(0x4a90e2, 0.3);
+            fillLight.position.set(-10, 0, -10);
+            scene.add(fillLight);
+            
+            // Create bomb suit
+            createBombSuit();
+            
+            // Create background bombs
+            createBackgroundBombs();
+            
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(20, 20);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x2c3e50 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Mouse controls
+            document.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('wheel', onWheel);
+            
+            // Window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            animate();
+        }
+        
+        function createBombSuit() {
+            bombSuit = new THREE.Group();
+            
+            // Materials
+            const suitMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x4a5d23,
+                shininess: 30,
+                specular: 0x111111
+            });
+            
+            const helmetMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x3a4d1a,
+                shininess: 60,
+                specular: 0x333333
+            });
+            
+            const visorMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x001122,
+                transparent: true,
+                opacity: 0.8,
+                shininess: 100
+            });
+            
+            // Torso - main body
+            const torsoGeometry = new THREE.BoxGeometry(1.2, 1.5, 0.8);
+            const torso = new THREE.Mesh(torsoGeometry, suitMaterial);
+            torso.position.y = 0.5;
+            torso.castShadow = true;
+            bombSuit.add(torso);
+            
+            // Chest plate
+            const chestPlateGeometry = new THREE.BoxGeometry(1.0, 1.2, 0.3);
+            const chestPlate = new THREE.Mesh(chestPlateGeometry, suitMaterial);
+            chestPlate.position.set(0, 0.6, 0.4);
+            chestPlate.castShadow = true;
+            bombSuit.add(chestPlate);
+            
+            // Helmet base
+            const helmetGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+            const helmet = new THREE.Mesh(helmetGeometry, helmetMaterial);
+            helmet.position.y = 1.8;
+            helmet.castShadow = true;
+            bombSuit.add(helmet);
+            
+            // Visor
+            const visorGeometry = new THREE.SphereGeometry(0.38, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            const visor = new THREE.Mesh(visorGeometry, visorMaterial);
+            visor.position.set(0, 1.8, 0.1);
+            visor.castShadow = true;
+            bombSuit.add(visor);
+            
+            // Arms
+            const armGeometry = new THREE.CylinderGeometry(0.15, 0.18, 1.2, 8);
+            
+            // Left arm
+            const leftArm = new THREE.Mesh(armGeometry, suitMaterial);
+            leftArm.position.set(-0.8, 0.5, 0);
+            leftArm.castShadow = true;
+            bombSuit.add(leftArm);
+            
+            // Right arm
+            const rightArm = new THREE.Mesh(armGeometry, suitMaterial);
+            rightArm.position.set(0.8, 0.5, 0);
+            rightArm.castShadow = true;
+            bombSuit.add(rightArm);
+            
+            // Shoulder pads
+            const shoulderGeometry = new THREE.SphereGeometry(0.25, 12, 12);
+            
+            const leftShoulder = new THREE.Mesh(shoulderGeometry, suitMaterial);
+            leftShoulder.position.set(-0.7, 1.0, 0);
+            leftShoulder.castShadow = true;
+            bombSuit.add(leftShoulder);
+            
+            const rightShoulder = new THREE.Mesh(shoulderGeometry, suitMaterial);
+            rightShoulder.position.set(0.7, 1.0, 0);
+            rightShoulder.castShadow = true;
+            bombSuit.add(rightShoulder);
+            
+            // Gloves
+            const gloveGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+            
+            const leftGlove = new THREE.Mesh(gloveGeometry, suitMaterial);
+            leftGlove.position.set(-0.8, -0.2, 0);
+            leftGlove.castShadow = true;
+            bombSuit.add(leftGlove);
+            
+            const rightGlove = new THREE.Mesh(gloveGeometry, suitMaterial);
+            rightGlove.position.set(0.8, -0.2, 0);
+            rightGlove.castShadow = true;
+            bombSuit.add(rightGlove);
+            
+            // Legs
+            const legGeometry = new THREE.CylinderGeometry(0.18, 0.16, 1.8, 8);
+            
+            const leftLeg = new THREE.Mesh(legGeometry, suitMaterial);
+            leftLeg.position.set(-0.3, -1.2, 0);
+            leftLeg.castShadow = true;
+            bombSuit.add(leftLeg);
+            
+            const rightLeg = new THREE.Mesh(legGeometry, suitMaterial);
+            rightLeg.position.set(0.3, -1.2, 0);
+            rightLeg.castShadow = true;
+            bombSuit.add(rightLeg);
+            
+            // Boots
+            const bootGeometry = new THREE.BoxGeometry(0.3, 0.2, 0.5);
+            
+            const leftBoot = new THREE.Mesh(bootGeometry, suitMaterial);
+            leftBoot.position.set(-0.3, -2.1, 0.1);
+            leftBoot.castShadow = true;
+            bombSuit.add(leftBoot);
+            
+            const rightBoot = new THREE.Mesh(bootGeometry, suitMaterial);
+            rightBoot.position.set(0.3, -2.1, 0.1);
+            rightBoot.castShadow = true;
+            bombSuit.add(rightBoot);
+            
+            // Utility pouches
+            const pouchGeometry = new THREE.BoxGeometry(0.2, 0.3, 0.15);
+            
+            const leftPouch = new THREE.Mesh(pouchGeometry, suitMaterial);
+            leftPouch.position.set(-0.4, 0.2, 0.5);
+            leftPouch.castShadow = true;
+            bombSuit.add(leftPouch);
+            
+            const rightPouch = new THREE.Mesh(pouchGeometry, suitMaterial);
+            rightPouch.position.set(0.4, 0.2, 0.5);
+            rightPouch.castShadow = true;
+            bombSuit.add(rightPouch);
+            
+            // Back pack
+            const backPackGeometry = new THREE.BoxGeometry(0.8, 1.0, 0.4);
+            const backPack = new THREE.Mesh(backPackGeometry, suitMaterial);
+            backPack.position.set(0, 0.5, -0.6);
+            backPack.castShadow = true;
+            bombSuit.add(backPack);
+            
+            scene.add(bombSuit);
+        }
+        
+        function createBackgroundBombs() {
+            const bombMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x2c2c2c,
+                shininess: 30
+            });
+            
+            const fuseMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x8b4513,
+                shininess: 10
+            });
+            
+            const sparkMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xff4500,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            // Create multiple bombs in the background
+            for (let i = 0; i < 8; i++) {
+                const bombGroup = new THREE.Group();
+                
+                // Main bomb body (sphere)
+                const bombGeometry = new THREE.SphereGeometry(0.3, 12, 12);
+                const bomb = new THREE.Mesh(bombGeometry, bombMaterial);
+                bomb.castShadow = true;
+                bombGroup.add(bomb);
+                
+                // Fuse
+                const fuseGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.4, 6);
+                const fuse = new THREE.Mesh(fuseGeometry, fuseMaterial);
+                fuse.position.set(0, 0.35, 0);
+                fuse.rotation.z = Math.PI * 0.1;
+                bombGroup.add(fuse);
+                
+                // Spark at the end of fuse
+                const sparkGeometry = new THREE.SphereGeometry(0.05, 6, 6);
+                const spark = new THREE.Mesh(sparkGeometry, sparkMaterial);
+                spark.position.set(0.05, 0.7, 0);
+                bombGroup.add(spark);
+                
+                // Random positioning in background
+                bombGroup.position.set(
+                    (Math.random() - 0.5) * 30,
+                    Math.random() * 10 + 2,
+                    -15 - Math.random() * 10
+                );
+                
+                // Random rotation
+                bombGroup.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                
+                // Store original position and add movement properties
+                bombGroup.userData = {
+                    originalY: bombGroup.position.y,
+                    floatSpeed: 0.5 + Math.random() * 0.5,
+                    floatOffset: Math.random() * Math.PI * 2,
+                    rotationSpeed: {
+                        x: (Math.random() - 0.5) * 0.02,
+                        y: (Math.random() - 0.5) * 0.02,
+                        z: (Math.random() - 0.5) * 0.02
+                    }
+                };
+                
+                backgroundBombs.push(bombGroup);
+                scene.add(bombGroup);
+            }
+        }
+        
+        function onMouseDown(event) {
+            isMouseDown = true;
+            autoRotate = false;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+        
+        function onMouseMove(event) {
+            if (!isMouseDown) return;
+            
+            const deltaX = event.clientX - mouseX;
+            const deltaY = event.clientY - mouseY;
+            
+            bombSuit.rotation.y += deltaX * 0.01;
+            bombSuit.rotation.x += deltaY * 0.01;
+            
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+        
+        function onMouseUp() {
+            isMouseDown = false;
+            setTimeout(() => { autoRotate = true; }, 2000);
+        }
+        
+        function onWheel(event) {
+            camera.position.z += event.deltaY * 0.01;
+            camera.position.z = Math.max(2, Math.min(10, camera.position.z));
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight - 180);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (autoRotate && bombSuit) {
+                bombSuit.rotation.y += rotationSpeed;
+            }
+            
+            // Animate background bombs
+            const time = Date.now() * 0.001;
+            backgroundBombs.forEach(bomb => {
+                // Floating motion
+                bomb.position.y = bomb.userData.originalY + Math.sin(time * bomb.userData.floatSpeed + bomb.userData.floatOffset) * 0.5;
+                
+                // Slow rotation
+                bomb.rotation.x += bomb.userData.rotationSpeed.x;
+                bomb.rotation.y += bomb.userData.rotationSpeed.y;
+                bomb.rotation.z += bomb.userData.rotationSpeed.z;
+                
+                // Animate spark flickering
+                const spark = bomb.children[2]; // spark is the third child
+                if (spark) {
+                    spark.material.opacity = 0.6 + Math.sin(time * 10 + bomb.userData.floatOffset) * 0.4;
+                    spark.scale.setScalar(0.8 + Math.sin(time * 8 + bomb.userData.floatOffset) * 0.3);
+                }
+            });
+            
+            renderer.render(scene, camera);
+        }
+        
+        init();
+    </script>
+</body>
+</html>
